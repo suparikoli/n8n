@@ -30,7 +30,7 @@ export { InMemoryWorkQueue } from './queue';
 export type {
 	ExecutionEnqueuedEvent,
 	OrchestrationMessage,
-	StepCompletedEvent,
+	StepSettledEvent,
 	StepMessage,
 	StepReadyEvent,
 	WorkQueue,
@@ -40,7 +40,7 @@ export {
 	ExecutionNotFoundError,
 	ExecutionStartHandler,
 	OrchestrationWorker,
-	StepCompletedHandler,
+	StepSettledHandler,
 	StepNotFoundError,
 	StepReadyHandler,
 	StepWorker,
