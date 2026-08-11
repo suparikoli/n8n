@@ -1,7 +1,6 @@
 import type { z } from 'zod';
 
 import type { BrowserConnection } from '../connection';
-import { ConnectionLostError } from '../errors';
 import { createLogger } from '../logger';
 import { redactCallToolResult } from '../redaction/redact';
 import type {
@@ -91,6 +90,7 @@ export function createConnectedTool<
 		inputSchema,
 		outputSchema,
 		async execute(args: z.infer<TSchema>, context: ToolContext) {
+			connection.beginToolCall();
 			try {
 				const { state, pageId } = resolvePageContext(connection, args);
 
@@ -122,20 +122,13 @@ export function createConnectedTool<
 
 				return redactCallToolResult(result);
 			} catch (error) {
-				// Playwright throws TargetClosedError when browser/page dies mid-operation.
-				// Re-throw as our typed error so the AI gets a clear message + hint.
-				if (error instanceof Error && error.name === 'TargetClosedError') {
-					return redactCallToolResult(
-						await buildErrorResponse(
-							new ConnectionLostError('browser_closed'),
-							connection,
-							args,
-							options ?? {},
-						),
-					);
-				}
 				return redactCallToolResult(
-					await buildErrorResponse(error, connection, args, options ?? {}),
+					await buildErrorResponse(
+						connection.explainFailure(error),
+						connection,
+						args,
+						options ?? {},
+					),
 				);
 			}
 		},
