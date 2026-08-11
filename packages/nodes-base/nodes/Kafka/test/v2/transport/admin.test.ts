@@ -99,6 +99,21 @@ describe('assertTopicExists', () => {
 		);
 	});
 
+	it('lets a pattern topic activate, which the broker calls an invalid topic', async () => {
+		// A Topic of `^orders-.*` is a working pattern subscription on v2. The broker
+		// answers the metadata request with "invalid topic" (17) rather than "unknown
+		// topic" (3), so it must stay on the inconclusive path. Widening the check
+		// would stop every pattern subscription from activating.
+		failNextTopicMetadata(
+			Object.assign(new Error('Broker: Invalid topic'), {
+				name: 'KafkaJSProtocolError',
+				code: 17,
+			}),
+		);
+
+		await expect(assertTopicExists(credentials, '^orders-.*', logger)).resolves.toBeUndefined();
+	});
+
 	it('does not treat some other error code as a missing topic', async () => {
 		failNextTopicMetadata(
 			Object.assign(new Error('Broker: Group authorization failed'), { code: 30 }),

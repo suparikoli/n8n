@@ -43,6 +43,17 @@ const METADATA_TIMEOUT_MS = 3_000;
  * An admin metadata request does not create the topic, even on a broker with
  * `auto.create.topics.enable=true`: auto-creation is driven by the consumer's
  * own `allow.auto.create.topics`, which the library leaves off.
+ *
+ * A Topic starting with `^` is a pattern subscription, and it keeps working: it
+ * needs no special case here because the broker answers a pattern with "invalid
+ * topic" rather than "unknown topic", which is inconclusive and lets the trigger
+ * start. Both halves verified against a real broker: `^prefix-.*` consumed from a
+ * topic created to match, and the metadata request for it returned
+ * `ERR_INVALID_TOPIC_EXCEPTION` (17), not (3). librdkafka reads a leading `^` as
+ * a regex; v1 could not do this, since kafkajs only treated an actual `RegExp`
+ * object as a pattern and the node always passed a string. So widening the check
+ * below beyond the single "unknown topic" code would silently stop patterns from
+ * activating.
  * @param credentials - The decrypted Kafka credential
  * @param topic - The topic the trigger is about to subscribe to
  * @param logger - Records an inconclusive check, which is not an error
