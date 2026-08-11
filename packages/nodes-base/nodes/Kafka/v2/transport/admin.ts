@@ -4,8 +4,18 @@ import { UserError } from 'n8n-workflow';
 import { createKafkaClient, getKafkaLibrary } from './client';
 import type { KafkaCredentials } from '../../utils';
 
-/** Bounds the metadata request so a slow broker cannot stall activation. */
-const METADATA_TIMEOUT_MS = 10_000;
+/**
+ * Bounds the metadata request so a slow broker cannot stall activation.
+ *
+ * Deliberately short, because an unreachable broker pays it in full and there is
+ * no earlier failure to cut it off: `admin.connect()` resolves without reaching
+ * the broker at all (measured at 10ms against a dead one), so the whole wait
+ * lands here. Startup activates one workflow at a time by default
+ * (`N8N_WORKFLOW_ACTIVATION_BATCH_SIZE`), so every Kafka trigger pointing at a
+ * down broker adds this much to how long the instance takes to come up. 3s is
+ * still ample for a metadata round trip against a broker that is answering.
+ */
+const METADATA_TIMEOUT_MS = 3_000;
 
 /**
  * Fails activation when the topic does not exist on the broker.
@@ -51,12 +61,21 @@ export async function assertTopicExists(
 		await admin.fetchTopicMetadata({ topics: [topic], timeout: METADATA_TIMEOUT_MS });
 	} catch (error) {
 		if (isUnknownTopic(error, ErrorCodes.ERR_UNKNOWN_TOPIC_OR_PART)) {
-			throw new UserError(`Kafka topic "${topic}" does not exist`, {
-				level: 'warning',
-				description:
-					'A topic that is not on the broker yet would leave this workflow published but consuming nothing for several minutes. Create the topic (or correct the Topic field), then publish the workflow again.',
-				cause: error instanceof Error ? error : undefined,
-			});
+			// The fix belongs in the message, not the description: the activation path
+			// only carries a description off a NodeApiError (`workflows/utils.ts`,
+			// getErrorDescription), and this arrives as a NodeOperationError, so on a
+			// failed publish the description is dropped and the message is all the user
+			// sees. The description still renders on surfaces that show the node error
+			// itself, so it carries the reasoning rather than repeating the instruction.
+			throw new UserError(
+				`Kafka topic "${topic}" does not exist. Create the topic on the broker, or correct the Topic field, then publish the workflow again.`,
+				{
+					level: 'warning',
+					description:
+						'Publishing anyway would leave the workflow showing as published while consuming nothing, because a topic created later is only picked up at the next broker metadata refresh, minutes away.',
+					cause: error instanceof Error ? error : undefined,
+				},
+			);
 		}
 
 		logger?.warn('Kafka topic could not be verified before starting the consumer', {

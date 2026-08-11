@@ -42,7 +42,7 @@ describe('assertTopicExists', () => {
 
 		expect(lastAdmin().fetchTopicMetadata).toHaveBeenCalledWith({
 			topics: ['my-topic'],
-			timeout: 10_000,
+			timeout: 3_000,
 		});
 	});
 
@@ -74,9 +74,16 @@ describe('assertTopicExists', () => {
 
 		await expect(assertion).rejects.toThrow(UserError);
 		await expect(assertion).rejects.toThrow('Kafka topic "missing-topic" does not exist');
-		await expect(assertion).rejects.toMatchObject({
-			description: expect.stringContaining('publish the workflow again'),
-		});
+	});
+
+	it('puts the fix in the message, which is the only part a failed publish shows', async () => {
+		// n8n's activation path drops the description of a NodeOperationError, so
+		// guidance that lives only there never reaches the user.
+		failNextTopicMetadata(unknownTopicError());
+
+		await expect(assertTopicExists(credentials, 'missing-topic', logger)).rejects.toThrow(
+			'Create the topic on the broker, or correct the Topic field, then publish the workflow again',
+		);
 	});
 
 	it('proceeds on an inconclusive check rather than blocking activation', async () => {

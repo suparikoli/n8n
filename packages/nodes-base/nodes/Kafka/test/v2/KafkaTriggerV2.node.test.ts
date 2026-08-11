@@ -557,7 +557,7 @@ describe('KafkaTriggerV2 Node', () => {
 			const admin = getFakeAdmins().at(-1);
 			expect(admin?.fetchTopicMetadata).toHaveBeenCalledWith({
 				topics: ['test-topic'],
-				timeout: 10_000,
+				timeout: 3_000,
 			});
 			// Checked with a throwaway client that does not outlive the check.
 			expect(admin?.disconnect).toHaveBeenCalledTimes(1);
