@@ -39,8 +39,68 @@ export interface FakeConsumer {
 	};
 }
 
+/** The admin client `assertTopicExists` uses to verify the topic. */
+export interface FakeAdmin {
+	connect: Mock;
+	fetchTopicMetadata: Mock;
+	disconnect: Mock;
+}
+
+/** librdkafka's code for a topic the broker does not know, as the real library exposes it. */
+export const UNKNOWN_TOPIC_OR_PART = 3;
+
 const consumers: FakeConsumer[] = [];
+const admins: FakeAdmin[] = [];
 const clientConfigs: KafkaJS.CommonConstructorConfig[] = [];
+
+/**
+ * How the next fake admin answers `fetchTopicMetadata`. A test that needs a
+ * missing topic (or an inconclusive check) sets this before acting.
+ */
+let nextMetadataOutcome: (() => Promise<unknown>) | undefined;
+
+/** How the next fake admin answers `disconnect()`. */
+let nextDisconnectError: Error | undefined;
+
+/** Makes the next `fetchTopicMetadata` reject with `error`. */
+export function failNextTopicMetadata(error: Error): void {
+	nextMetadataOutcome = async () => {
+		throw error;
+	};
+}
+
+/** Makes the next admin's `disconnect()` reject with `error`. */
+export function failNextAdminDisconnect(error: Error): void {
+	nextDisconnectError = error;
+}
+
+/** An error shaped like the library's rejection for a topic the broker does not know. */
+export function unknownTopicError(): Error & { code: number } {
+	return Object.assign(new Error('Broker: Unknown topic or partition'), {
+		name: 'KafkaJSProtocolError',
+		code: UNKNOWN_TOPIC_OR_PART,
+	});
+}
+
+function createFakeAdmin(): FakeAdmin {
+	const outcome = nextMetadataOutcome;
+	nextMetadataOutcome = undefined;
+	const disconnectError = nextDisconnectError;
+	nextDisconnectError = undefined;
+
+	const admin: FakeAdmin = {
+		connect: vi.fn(async () => {}),
+		fetchTopicMetadata: vi.fn(async () =>
+			outcome ? await outcome() : [{ name: 'test-topic', partitions: [{ partitionId: 0 }] }],
+		),
+		disconnect: vi.fn(async () => {
+			if (disconnectError) throw disconnectError;
+		}),
+	};
+
+	admins.push(admin);
+	return admin;
+}
 
 function createFakeConsumer(config: KafkaJS.ConsumerConstructorConfig): FakeConsumer {
 	let eachBatch: EachBatchHandler | undefined;
@@ -117,7 +177,7 @@ function fakeKafkaClient(config?: KafkaJS.CommonConstructorConfig) {
 			disconnect: vi.fn(),
 		})),
 		consumer: vi.fn(createFakeConsumer),
-		admin: vi.fn(),
+		admin: vi.fn(createFakeAdmin),
 	};
 }
 
@@ -129,6 +189,7 @@ export function confluentKafkaModuleMock(): { readonly KafkaJS: unknown } {
 			return {
 				Kafka: vi.fn(fakeKafkaClient),
 				logLevel: { NOTHING: 0, ERROR: 1, WARN: 2, INFO: 3, DEBUG: 4 },
+				ErrorCodes: { ERR_UNKNOWN_TOPIC_OR_PART: UNKNOWN_TOPIC_OR_PART },
 			};
 		},
 	};
@@ -147,6 +208,11 @@ export function getFakeConsumers(): FakeConsumer[] {
 	return consumers;
 }
 
+/** Admin clients created through the fake, in creation order. */
+export function getFakeAdmins(): FakeAdmin[] {
+	return admins;
+}
+
 /** Configs passed to the fake `Kafka` constructor, in creation order. */
 export function getFakeClientConfigs(): KafkaJS.CommonConstructorConfig[] {
 	return clientConfigs;
@@ -155,5 +221,8 @@ export function getFakeClientConfigs(): KafkaJS.CommonConstructorConfig[] {
 /** Clears the recorded consumers and client configs (not the access count). */
 export function resetConfluentKafkaRecordings(): void {
 	consumers.length = 0;
+	admins.length = 0;
 	clientConfigs.length = 0;
+	nextMetadataOutcome = undefined;
+	nextDisconnectError = undefined;
 }
