@@ -1,27 +1,61 @@
 import type { IDataObject, IExecuteFunctions, INodeExecutionData } from 'n8n-workflow';
 import { NodeOperationError } from 'n8n-workflow';
 
-/**
- * Compile-checked contract for operation modules. The router body (owned by ENT-125)
- * calls `<resource>.<operation>.execute.call(this, i)` once per item, SharePoint v2
- * shape; the other op tickets (ENT-126/319/127/305/327/306) implement against this.
- */
+import * as page from './page';
+
+/** The router calls `<resource>.<operation>.execute.call(this, i)` once per item. */
 export type ConfluenceOperation = (
 	this: IExecuteFunctions,
 	itemIndex: number,
 ) => Promise<IDataObject | IDataObject[]>;
 
-export async function router(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
-	// Fallbacks: the shell ships properties: [], so these parameters don't exist yet
-	const resource = this.getNodeParameter('resource', 0, '');
-	const operation = this.getNodeParameter('operation', 0, '');
+const operations: Record<string, Record<string, ConfluenceOperation>> = {
+	page: {
+		create: page.create.execute,
+	},
+};
 
-	switch (resource) {
-		// Op tickets (ENT-125/126/319/127/305/327/306) add their resource cases here
-		default:
-			throw new NodeOperationError(
-				this.getNode(),
-				`The operation "${resource}:${operation}" is not supported`,
+export async function router(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
+	const items = this.getInputData();
+	const returnData: INodeExecutionData[] = [];
+
+	for (let i = 0; i < items.length; i++) {
+		try {
+			const resource = this.getNodeParameter('resource', i, '');
+			const operation = this.getNodeParameter('operation', i, '');
+
+			const resourceOperations = Object.hasOwn(operations, resource)
+				? operations[resource]
+				: undefined;
+			const execute =
+				resourceOperations && Object.hasOwn(resourceOperations, operation)
+					? resourceOperations[operation]
+					: undefined;
+			if (!execute) {
+				throw new NodeOperationError(
+					this.getNode(),
+					`The operation "${resource}:${operation}" is not supported`,
+					{ itemIndex: i },
+				);
+			}
+
+			const result = await execute.call(this, i);
+			const executionData = this.helpers.constructExecutionMetaData(
+				this.helpers.returnJsonArray(result),
+				{ itemData: { item: i } },
 			);
+			returnData.push.apply(returnData, executionData);
+		} catch (error) {
+			if (this.continueOnFail()) {
+				returnData.push({
+					json: { error: (error as Error).message },
+					pairedItem: { item: i },
+				});
+				continue;
+			}
+			throw error;
+		}
 	}
+
+	return [returnData];
 }

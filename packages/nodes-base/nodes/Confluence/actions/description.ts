@@ -2,6 +2,7 @@
 import type { INodeTypeDescription } from 'n8n-workflow';
 import { NodeConnectionTypes } from 'n8n-workflow';
 
+import { pageProperties } from './page';
 import { CONFLUENCE_CREDENTIAL_NAME } from '../transport';
 
 export const confluenceNodeDescription: INodeTypeDescription = {
@@ -10,6 +11,7 @@ export const confluenceNodeDescription: INodeTypeDescription = {
 	icon: 'file:confluence.svg',
 	group: ['transform'],
 	version: 1,
+	subtitle: '={{ $parameter["operation"] + ": " + $parameter["resource"] }}',
 	description: 'Interact with the Confluence Cloud API',
 	defaults: {
 		name: 'Confluence',
@@ -24,5 +26,21 @@ export const confluenceNodeDescription: INodeTypeDescription = {
 			required: true,
 		},
 	],
-	properties: [],
+	properties: [
+		{
+			displayName: 'Resource',
+			name: 'resource',
+			type: 'options',
+			noDataExpression: true,
+			default: 'page',
+			options: [
+				{
+					name: 'Page',
+					value: 'page',
+					description: 'Read and write Confluence pages',
+				},
+			],
+		},
+		...pageProperties,
+	],
 };
