@@ -460,6 +460,7 @@ describe('AgentPreviewDock stream lifecycle', () => {
 					return () =>
 						open.value
 							? h(AgentPreviewDock, {
+									isOpen: true,
 									sessionTitle: 'Session',
 									sessionOptions: [],
 									hasSession: true,
