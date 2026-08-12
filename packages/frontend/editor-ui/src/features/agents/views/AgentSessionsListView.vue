@@ -4,26 +4,14 @@ import { useToast } from '@n8n/composables/useToast';
 import { MODAL_CONFIRM } from '@/app/constants';
 import { convertToDisplayDate } from '@/app/utils/formatters/dateFormatter';
 import { useAgentSessionsStore } from '@/features/agents/agentSessions.store';
-import {
-	AGENT_PREVIEW_VIEW,
-	AGENT_SESSION_DETAIL_VIEW,
-	CONTINUE_SESSION_ID_PARAM,
-	EXECUTIONS_SECTION_KEY,
-} from '@/features/agents/constants';
+import { AGENT_SESSION_DETAIL_VIEW } from '@/features/agents/constants';
 import { useThreadTitle } from '@/features/agents/utils/thread-title';
 import type { AgentExecutionThread } from '@/features/agents/composables/useAgentThreadsApi';
 import { useI18n } from '@n8n/i18n';
 import { computed, onBeforeUnmount, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 
-import {
-	N8nActionDropdown,
-	N8nButton,
-	N8nIcon,
-	N8nIconButton,
-	N8nTableBase,
-	N8nTooltip,
-} from '@n8n/design-system';
+import { N8nActionDropdown, N8nButton, N8nIcon, N8nTableBase } from '@n8n/design-system';
 import type { ActionDropdownItem } from '@n8n/design-system';
 import { ElSkeletonItem } from 'element-plus';
 
@@ -166,18 +154,6 @@ function rowActions(thread: AgentExecutionThread): Array<ActionDropdownItem<stri
 	return actions;
 }
 
-function openConversation(threadId: string) {
-	const target = {
-		name: AGENT_PREVIEW_VIEW,
-		params: { projectId: projectId.value, agentId: agentId.value },
-		query: {
-			[CONTINUE_SESSION_ID_PARAM]: threadId,
-			section: EXECUTIONS_SECTION_KEY,
-		},
-	};
-	void router.push(target);
-}
-
 function onViewTrace(target: TraceTarget) {
 	const routeTarget = {
 		name: AGENT_SESSION_DETAIL_VIEW,
@@ -240,19 +216,17 @@ async function loadMore() {
 			<N8nTableBase>
 				<tbody>
 					<tr
-						role="button"
 						v-for="thread in sessionsStore.threads"
 						:key="thread.id"
 						:class="$style.clickableRow"
 						data-test-id="agent-session-list-item"
-						@click="onViewTrace({ agentId, threadId: thread.id })"
 					>
 						<td :class="$style.titleCell">
 							<button
 								type="button"
 								:class="$style.sessionOpen"
 								data-test-id="agent-session-open"
-								@click.stop="openConversation(thread.id)"
+								@click="onViewTrace({ agentId, threadId: thread.id })"
 							>
 								<span :class="$style.sessionTitle" data-test-id="agent-session-title">
 									{{ threadTitleOf(thread) }}
@@ -274,17 +248,8 @@ async function loadMore() {
 						<td :class="$style.durationCell" data-test-id="agent-session-duration">
 							{{ formatDuration(thread.totalDuration) }}
 						</td>
-						<td :class="$style.actionCell" @click.stop>
+						<td :class="$style.actionCell">
 							<div :class="$style.actionGroup">
-								<N8nTooltip :content="i18n.baseText('agentSessions.viewTrace')">
-									<N8nIconButton
-										icon="message-circle-plus"
-										variant="ghost"
-										:aria-label="i18n.baseText('agents.builder.chat.newChat.label')"
-										data-test-id="agent-session-new-chat"
-										@click="openConversation(thread.id)"
-									/>
-								</N8nTooltip>
 								<N8nActionDropdown
 									:items="rowActions(thread)"
 									activator-icon="ellipsis"
@@ -435,8 +400,6 @@ async function loadMore() {
 }
 
 .clickableRow {
-	cursor: pointer;
-
 	td {
 		color: var(--text-color--subtler);
 	}

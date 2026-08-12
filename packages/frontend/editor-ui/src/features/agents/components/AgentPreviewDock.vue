@@ -10,7 +10,7 @@ import {
 import type { DropdownMenuItemProps } from '@n8n/design-system';
 import { useI18n } from '@n8n/i18n';
 import { computed, useTemplateRef } from 'vue';
-import { useEventListener, useStorage } from '@vueuse/core';
+import { useStorage } from '@vueuse/core';
 
 import KeyboardShortcutTooltip from '@/app/components/KeyboardShortcutTooltip.vue';
 import { useKeybindings } from '@/app/composables/useKeybindings';
@@ -74,13 +74,13 @@ const sessionDropdownOptions = computed<Array<DropdownMenuItemProps<string, Sess
 const layoutOptions = computed<Array<DropdownMenuItemProps<string>>>(() => [
 	{
 		id: 'floating',
-		label: 'Floating',
+		label: i18n.baseText('agents.builder.preview.layout.floating'),
 		checked: floating.value,
 		icon: { type: 'icon', value: 'picture-in-picture-2' },
 	},
 	{
 		id: 'docked',
-		label: 'Docked',
+		label: i18n.baseText('agents.builder.preview.layout.docked'),
 		checked: !floating.value,
 		icon: { type: 'icon', value: 'panel-right' },
 	},
@@ -195,7 +195,10 @@ useKeybindings({
 						/>
 					</KeyboardShortcutTooltip>
 
-					<N8nTooltip placement="bottom" content="Change layout">
+					<N8nTooltip
+						placement="bottom"
+						:content="i18n.baseText('agents.builder.preview.layout.change')"
+					>
 						<N8nDropdownMenu :items="layoutOptions" placement="bottom-end" @select="setLayout">
 							<template #trigger>
 								<N8nIconButton
@@ -203,7 +206,11 @@ useKeybindings({
 									variant="ghost"
 									size="small"
 									icon-size="large"
-									:aria-label="floating ? 'Floating preview' : 'Dock preview'"
+									:aria-label="
+										floating
+											? i18n.baseText('agents.builder.preview.layout.floating.ariaLabel')
+											: i18n.baseText('agents.builder.preview.layout.docked.ariaLabel')
+									"
 									data-testid="agent-preview-layout-btn"
 								/>
 							</template>
@@ -211,6 +218,7 @@ useKeybindings({
 					</N8nTooltip>
 
 					<KeyboardShortcutTooltip
+						v-if="floating"
 						placement="bottom"
 						:label="i18n.baseText('generic.close')"
 						:shortcut="{ keys: ['Esc'] }"
