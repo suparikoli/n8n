@@ -16,7 +16,6 @@ const props = withDefaults(
 		acceptedMimeTypes?: string;
 		autosize?: boolean | { minRows: number; maxRows: number };
 		buttonLabel?: string;
-		autofocus?: boolean;
 		// Send button turns active only while focused with text (default: follows canSubmit).
 		activeRequiresFocus?: boolean;
 		maxLength?: number;
@@ -28,7 +27,6 @@ const props = withDefaults(
 		buttonLabel: undefined,
 		activeRequiresFocus: false,
 		maxLength: undefined,
-		autofocus: false,
 	},
 );
 
@@ -88,8 +86,8 @@ function handleAttach() {
 	fileInputRef.value?.click();
 }
 
-function focusInput() {
-	inputRef.value?.focusInput();
+function focusInput(options?: FocusOptions) {
+	inputRef.value?.focusInput(options);
 }
 
 function handleFileSelect(e: Event) {
@@ -155,7 +153,6 @@ defineExpose({
 			ref="inputRef"
 			:model-value="modelValue"
 			:placeholder="placeholder"
-			:autofocus="autofocus"
 			:streaming="isStreaming"
 			:disabled="disabled"
 			:submit-disabled="!canSubmit"

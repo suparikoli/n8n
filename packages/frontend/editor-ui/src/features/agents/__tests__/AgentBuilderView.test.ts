@@ -464,6 +464,7 @@ const commonStubs = {
 		name: 'AgentPreviewDock',
 		template: '<aside data-testid="stub-agent-preview-dock" />',
 		props: [
+			'isOpen',
 			'sessionTitle',
 			'hasSession',
 			'initialized',
@@ -1239,7 +1240,7 @@ describe('AgentBuilderView — preview routing', { timeout: 60_000 }, () => {
 			await wrapper.setProps(nextProps);
 			await flushPromises();
 
-			expect(wrapper.findComponent({ name: 'AgentPreviewDock' }).exists()).toBe(false);
+			expect(wrapper.findComponent({ name: 'AgentPreviewDock' }).props('isOpen')).toBe(false);
 			expect(wrapper.emitted('preview-open-change')).toEqual([[false], [true], [false]]);
 			expect(routerPush).not.toHaveBeenCalled();
 			expect(routerReplace).not.toHaveBeenCalled();
